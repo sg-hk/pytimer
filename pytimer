@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+3
 import time
 from subprocess import run, Popen, DEVNULL, check_output
 import argparse
@@ -31,7 +31,7 @@ def timer(timer_time, mode, lock):
                 file.write(f'\n{int(minutes):02d}:{int(seconds):02d}')
         time.sleep(1)
         seconds_left -= 1
-    print() # Empty line to clearly separate entries
+    print() # Empty line to clearly separate breaks
 
 def is_running(class_name):
     try:
@@ -133,11 +133,12 @@ def pomodoro_timer(cycles, ptime, bktime, lbktime, frequency, category, focus, l
         work_action(ptime, cycles, total_time, work_time, mode, focus, i, category)
         i += 1
 
-        if i % 4 != 0:
-            mode = '小课间休息'
-        else:
-            mode = '大课间休息'
-        break_action(lock, wofi, bktime, lbktime, mode)
+        if i < cycles: # no break after last work period
+            if i % frequency != 0:
+                mode = '小课间休息'
+            else:
+                mode = '大课间休息'
+            break_action(lock, wofi, bktime, lbktime, mode)
 
     end_action(getpass.getuser())
 
@@ -153,7 +154,6 @@ def main():
     parser.add_argument('-L', '--lock', action='store_true', default=False, help='Opens the lock screen at the start of each break. Default false')
     parser.add_argument('-W', '--wofi', action='store_true', default=False, help='Launches wofi at the start of each break. Default false')
     args = parser.parse_args()
-
     pomodoro_timer(args.cycles, args.ptime, args.bktime, args.lbktime, args.frequency, args.category, args.focus, args.lock, args.wofi)
 
 if __name__ == "__main__":
