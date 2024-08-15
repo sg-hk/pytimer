@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+import time
+from subprocess import run, Popen, DEVNULL, check_output
+import argparse
+import getpass
+import os
+import sqlite3
+from datetime import datetime
+
+# Paths
+home_folder = os.path.expanduser('~')
+pomodoro_log_file = 'home_folder/.local/share/prodlog/pomodoros.db'
+# Colors
+PURPLE = 'rgb(660066)'
+PINK = 'rgb(FF66FF)'
+DARK_GREEN = 'rgb(006633)'
+LIGHT_GREEN = 'rgb(00FF80)'
+RED = 'rgb(FF0000)'
+
+def notify(color, text):
+    run(['hyprctl', '--quiet', 'notify', '-1', '5000', f'{color}', f'fontsize:20 {text}']) 
+
+def timer(timer_time, mode, lock):
+    log_file = '/tmp/prodlog_break_timer' # This log file is read by my lock_screen Eww widget
+    seconds_left = timer_time * 60
+    while seconds_left >= 0:
+        minutes, seconds = divmod(seconds_left, 60)
+        print(f'{mode}将持续{timer_time}分钟. {int(minutes):02d}:{int(seconds):02d}', end='\r')
+        if lock: 
+            with open(log_file, 'a') as file:
+                file.write(f'\n{int(minutes):02d}:{int(seconds):02d}')
+        time.sleep(1)
+        seconds_left -= 1
+    print() # Empty line to clearly separate breaks
+
+def is_running(class_name):
+    try:
+        clients_output = check_output(['hyprctl', 'clients'], text=True)
+        result = run(['grep', f'class: {class_name}'], input=clients_output, capture_output=True, text=True, check=True)
+        return bool(result.stdout.strip())
+    except:
+        return False
+
+def focus_fullscreen(class_name, want_fullscreen):
+    run(['hyprctl', '--quiet', 'dispatch', 'focuswindow', f'class: {class_name}']) # runs whether or not class_name found
+    # this code looks unnecessarily complex
+    try:
+        active_output = check_output(['hyprctl', 'activewindow'], text=True)
+        fullscreen_check = run(['grep', 'fullscreen: 1'], input=active_output, capture_output=True, text=True, check=True)
+        is_fullscreen = bool(fullscreen_check.stdout.strip())
+        print(is_fullscreen)
+        if want_fullscreen != is_fullscreen:
+            run(['hyprctl', '--quiet', 'dispatch', 'fullscreen'])
+        return is_fullscreen
+    except:
+        if want_fullscreen:
+            run(['hyprctl', '--quiet', 'dispatch', 'fullscreen'])
+        return False
+
+    
+def run_app(app):
+    if is_running(app):
+        print(f'{app}已在运行。窗口将设置全屏')
+        focus_fullscreen(app, True)
+    else:
+        print(f'{app}应用未在运行。运行应用设置全屏')
+        Popen([app], stdout=DEVNULL, stderr=DEVNULL)
+        # this is really ugly but... I have no good way to find out when Anki is available to be fullscreen'd
+        time.sleep(3)
+        focus_fullscreen(app, True)
+
+def log_pomodoro(pomodoro_time, category, date):
+    os.makedirs(os.path.dirname(pomodoro_log_file), exist_ok=True, mode=0o755)
+    entry = (date, pomodoro_time, category)
+    conn = sqlite3.connect(pomodoro_log_file)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS pomodoro_table
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  date TEXT,
+                  length INTEGER,
+                  category TEXT)''')
+    c.execute('INSERT INTO pomodoro_table (date, length, category) VALUES (?, ?, ?)', entry)
+    conn.commit()
+    conn.close()
+
+def work_action(ptime, cycles, total_time, work_time, mode, focus, i, category):
+    run(['mpv', '--no-terminal', '/usr/share/prodlog/start_bell.mp3'])
+    if i == 0:
+        notify(PURPLE, f'{cycles}个高校工作阶段将持续{total_time}分钟，总共工作{work_time}分钟。')
+    else:
+        notify(PURPLE, f'高校工作阶段开始了！剩{ptime}分钟了。加油！')
+    if focus:
+        run_app(focus)
+    timer(ptime, mode, False)
+    date = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    log_pomodoro(ptime, category, date)
+    if focus:
+        focus_fullscreen(focus, False)
+
+def break_action(lock, wofi, bktime, lbktime, mode):
+    run(['mpv', '--no-terminal', '/usr/share/prodlog/break_bell.mp3'])
+
+    if wofi and lock:
+        notify(RED, 'You cannot have both lock and wofi flags enabled at the same time. Skipping both.')
+    elif lock:
+        run(['eww', 'open', 'lock_screen'])
+    elif wofi:
+        run(['wofi','--show','drun'])
+
+    if mode == '小课间休息':
+        notify(DARK_GREEN, f'高校工作阶段结束了！太棒了！休息{bktime}分钟。')
+        timer_time = bktime # Passed on to timer
+    elif mode == '大课间休息':
+        notify(LIGHT_GREEN, f'高校工作阶段结束了！辛苦了！休息{lbktime}分钟。')
+        timer_time = lbktime # Passed on to timer
+    else:
+        timer_time = 0
+
+    timer(timer_time, mode, lock)
+    if lock:
+        run(['eww', 'close', 'lock_screen'])
+
+def end_action(username):
+    run(['mpv', '--no-terminal', '/usr/share/prodlog/end_bell.mp3'])
+    notify(PINK, f'所有任务完成了！恭喜恭喜，{username}大师！')
+
+def pomodoro_timer(cycles, ptime, bktime, lbktime, frequency, category, focus, lock, wofi):
+    # One break fewer than work periods
+    full_cycles = (cycles - 1) // frequency
+    work_time = ptime * cycles
+    total_time = work_time + lbktime * full_cycles + bktime * (cycles - 1 - full_cycles)
+    i = 0
+    for _ in range(cycles):    
+        mode = '高校工作阶段'
+        work_action(ptime, cycles, total_time, work_time, mode, focus, i, category)
+        i += 1
+
+        if i % 4 != 0:
+            mode = '小课间休息'
+        else:
+            mode = '大课间休息'
+        break_action(lock, wofi, bktime, lbktime, mode)
+
+    end_action(getpass.getuser())
+
+def main():
+    parser = argparse.ArgumentParser(description='Tatsumato inspired timeboxing tool.')
+    parser.add_argument('-n', '--cycles', type=int, default=4, help='Number of pomodoro cycles. Default 4')
+    parser.add_argument('-t', '--ptime', type=int, default=13, help='Pomodoro length in minutes. Default 13')
+    parser.add_argument('-b', '--bktime', type=int, default=2, help='Break length in minutes. Default 2')
+    parser.add_argument('-l', '--lbktime', type=int, default=3, help='Long break length in minutes. Default 3')
+    parser.add_argument('-f', '--frequency', type=int, default=4, help='Number of cycles before a long break. Default 4')
+    parser.add_argument('-c', '--category', type=str, default=None, help='Category for logging. Default none')
+    parser.add_argument('-F', '--focus', type=str, default=None, help='Launches or switches to the specified app. Default none')
+    parser.add_argument('-L', '--lock', action='store_true', default=False, help='Opens the lock screen at the start of each break. Default false')
+    parser.add_argument('-W', '--wofi', action='store_true', default=False, help='Launches wofi at the start of each break. Default false')
+    args = parser.parse_args()
+
+    pomodoro_timer(args.cycles, args.ptime, args.bktime, args.lbktime, args.frequency, args.category, args.focus, args.lock, args.wofi)
+
+if __name__ == "__main__":
+    main()
