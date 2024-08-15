@@ -1,4 +1,3 @@
-3
 import time
 from subprocess import run, Popen, DEVNULL, check_output
 import argparse
