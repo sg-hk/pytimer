@@ -4,7 +4,7 @@ A tatsumato inspired CLI pomodoro timer in Python. It takes on flag arguments fo
 - Lock the screen on break time, and unlock it when break time ends. I am using an Eww widget for this, not included.
 - Run the wayland app launcher wofi on break time.
 
-The script will also log the pomodoro's work length, date, and category in an SQL database. No query tool is included as this is meant to be a standalone script.
+The script will also log the pomodoro's work length, date, and category in an SQL database. No query tool is included as this is meant to be a standalone script (above dependencies notwithstanding).
 
 Flags:
 ```
