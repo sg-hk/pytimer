@@ -21,6 +21,6 @@ Flags:
 
 Example usage:
 ```
-pytimer -n 4 -t 25 -b 5 -l 10 # Standard timer
+pytimer -n 4 -t 25 -b 5 -l 10 # Classic pomodoro timer
 pytimer -c chinese -F anki -L # Vocab study timer
 ```
