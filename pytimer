@@ -20,15 +20,14 @@ RED = 'rgb(FF0000)'
 def notify(color, text):
     run(['hyprctl', '--quiet', 'notify', '-1', '5000', f'{color}', f'fontsize:20 {text}']) 
 
-def timer(timer_time, mode, lock):
+def timer(timer_time, mode):
     log_file = '/tmp/pytimer_timer_log' # The log file is read by hyprlock
     seconds_left = timer_time * 60
     while seconds_left >= 0:
         minutes, seconds = divmod(seconds_left, 60)
         print(f'{mode}将持续{timer_time}分钟. {int(minutes):02d}:{int(seconds):02d}', end='\r')
-        if lock: 
-            with open(log_file, 'a') as file:
-                file.write(f'\n{mode}:{int(minutes):02d}:{int(seconds):02d}')
+        with open(log_file, 'a') as file:
+            file.write(f'\n{mode}:{int(minutes):02d}:{int(seconds):02d}')
         time.sleep(1)
         seconds_left -= 1
     print() # Empty line to clearly separate breaks
@@ -95,7 +94,7 @@ def work_action(ptime, cycles, total_time, work_time, mode, focus, i, category):
         notify(PURPLE, f'【{i+1}/{cycles}】高校工作阶段开始了！剩{ptime}分钟了。加油！')
     if focus:
         run_app(focus)
-    timer(ptime, mode, False)
+    timer(ptime, mode)
     date = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     log_pomodoro(ptime, category, date)
     if focus:
@@ -120,7 +119,7 @@ def break_action(lock, wofi, bktime, lbktime, mode):
     else:
         timer_time = 0
 
-    timer(timer_time, mode, lock)
+    timer(timer_time, mode)
     if lock:
         run(['hyprlock'])
 
