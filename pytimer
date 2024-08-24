@@ -9,7 +9,7 @@ from datetime import datetime
 
 # Paths
 home_folder = os.path.expanduser('~')
-pomodoro_log_file = os.path.join(home_folder, '.local', 'share', 'prodlog', 'pomodoros.db')
+pomodoro_log_file = os.path.join(home_folder, '.local', 'share', 'pytimer', 'pomodoros.db')
 # Colors
 PURPLE = 'rgb(660066)'
 PINK = 'rgb(FF66FF)'
@@ -21,14 +21,14 @@ def notify(color, text):
     run(['hyprctl', '--quiet', 'notify', '-1', '5000', f'{color}', f'fontsize:20 {text}']) 
 
 def timer(timer_time, mode, lock):
-    log_file = '/tmp/prodlog_break_timer' # This log file is read by my lock_screen Eww widget
+    log_file = '/tmp/pytimer_timer_log' # The log file is read by hyprlock
     seconds_left = timer_time * 60
     while seconds_left >= 0:
         minutes, seconds = divmod(seconds_left, 60)
         print(f'{mode}将持续{timer_time}分钟. {int(minutes):02d}:{int(seconds):02d}', end='\r')
         if lock: 
             with open(log_file, 'a') as file:
-                file.write(f'\n{int(minutes):02d}:{int(seconds):02d}')
+                file.write(f'\n{mode}:{int(minutes):02d}:{int(seconds):02d}')
         time.sleep(1)
         seconds_left -= 1
     print() # Empty line to clearly separate breaks
@@ -88,11 +88,11 @@ def log_pomodoro(pomodoro_time, category, date):
     conn.close()
 
 def work_action(ptime, cycles, total_time, work_time, mode, focus, i, category):
-    run(['mpv', '--no-terminal', '/usr/share/prodlog/start_bell.mp3'])
+    run(['mpv', '--no-terminal', '/usr/share/pytimer/start_bell.mp3'])
     if i == 0:
         notify(PURPLE, f'{cycles}个高校工作阶段将持续{total_time}分钟，总共工作{work_time}分钟。')
     else:
-        notify(PURPLE, f'高校工作阶段开始了！剩{ptime}分钟了。加油！')
+        notify(PURPLE, f'【{i+1}/{cycles}】高校工作阶段开始了！剩{ptime}分钟了。加油！')
     if focus:
         run_app(focus)
     timer(ptime, mode, False)
@@ -102,12 +102,12 @@ def work_action(ptime, cycles, total_time, work_time, mode, focus, i, category):
         focus_fullscreen(focus, False)
 
 def break_action(lock, wofi, bktime, lbktime, mode):
-    run(['mpv', '--no-terminal', '/usr/share/prodlog/break_bell.mp3'])
+    run(['mpv', '--no-terminal', '/usr/share/pytimer/break_bell.mp3'])
 
     if wofi and lock:
         notify(RED, 'You cannot have both lock and wofi flags enabled at the same time. Skipping both.')
     elif lock:
-        run(['eww', 'open', 'lock_screen'])
+        run(['hyprlock'])
     elif wofi:
         run(['wofi','--show','drun'])
 
@@ -122,10 +122,10 @@ def break_action(lock, wofi, bktime, lbktime, mode):
 
     timer(timer_time, mode, lock)
     if lock:
-        run(['eww', 'close', 'lock_screen'])
+        run(['hyprlock'])
 
 def end_action(username):
-    run(['mpv', '--no-terminal', '/usr/share/prodlog/end_bell.mp3'])
+    run(['mpv', '--no-terminal', '/usr/share/pytimer/end_bell.mp3'])
     notify(PINK, f'所有任务完成了！恭喜恭喜，{username}大师！')
 
 def pomodoro_timer(cycles, ptime, bktime, lbktime, frequency, category, focus, lock, wofi):

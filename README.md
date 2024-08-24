@@ -1,10 +1,10 @@
 # pytimer
-A tatsumato inspired CLI pomodoro timer in Python. It takes on flag arguments for the work and break times, and can do the following as well:
-- Switch to an app on work time, and make it fullscreen. The commands depend on Hyprland.
-- Lock the screen on break time, and unlock it when break time ends. I am using an Eww widget for this, not included.
+A tatsumato inspired CLI pomodoro timer in Python, adapted for Hyprland. It takes on flag arguments for the work and break times, and can do the following as well:
+- Switch to an app on work time, and make it fullscreen.
+- Lock the screen on break time, and unlock it when break time ends.
 - Run the wayland app launcher wofi on break time.
 
-The script will also log the pomodoro's work length, date, and category in an SQL database. No query tool is included as this is meant to be a standalone script (above dependencies notwithstanding).
+The script will also log the pomodoro's work length, date, and category in an SQL database. No query tool is included as this is meant to be a standalone script (above dependencies to Hyprland notwithstanding).
 
 Flags:
 ```
@@ -24,3 +24,5 @@ Example usage:
 pytimer -n 4 -t 25 -b 5 -l 10 # Classic pomodoro timer
 pytimer -c chinese -F anki -L # Vocab study timer
 ```
+
+Remember to move the pytimer script to your path.
